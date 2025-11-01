@@ -1,0 +1,29 @@
+# CypX–AND | Reproducible GROMACS commands
+
+# --- Energy Minimization ---
+gmx grompp -f step4.0_minimization.mdp -c step3_input.gro -p topol.top -r step3_input.gro -n index.ndx -o step4.0_minimization.tpr
+gmx mdrun  -deffnm step4.0_minimization
+
+# --- NPT Equilibration ---
+gmx grompp -f step4.1_equilibration.mdp -c step4.0_minimization.gro -p topol.top -r step4.0_minimization.gro -n index.ndx -o step4.1_equilibration.tpr
+gmx mdrun  -deffnm step4.1_equilibration
+
+# --- Production (1 µs via 20 × 50 ns segments; dt = 0.002 ps ⇒ nsteps/segment = 25000000) ---
+# Segment 01
+cp step5_production.mdp seg_01.mdp
+sed -i 's/^nsteps.*/nsteps                   = 25000000/' seg_01.mdp
+gmx grompp -f seg_01.mdp -c step4.1_equilibration.gro -p topol.top -n index.ndx -o seg_01.tpr
+gmx mdrun  -deffnm seg_01
+
+# Segment 02..20 (continue from previous checkpoint)
+for k in $(seq -w 02 20); do
+  prev=$(printf 'seg_%02d' $((10#$k - 1)))
+  cp step5_production.mdp seg_${k}.mdp
+  sed -i 's/^nsteps.*/nsteps                   = 25000000/' seg_${k}.mdp
+  gmx grompp -f seg_${k}.mdp -c ${prev}.gro -t ${prev}.cpt -p topol.top -n index.ndx -o seg_${k}.tpr
+  gmx mdrun  -deffnm seg_${k}
+done
+
+# --- Concatenate after completion (optional) ---
+gmx trjcat  -f $(printf 'seg_%02d.xtc ' $(seq -w 01 20)) -o prod_1us.xtc -cat
+gmx eneconv -f $(printf 'seg_%02d.edr ' $(seq -w 01 20)) -o prod_1us.edr
