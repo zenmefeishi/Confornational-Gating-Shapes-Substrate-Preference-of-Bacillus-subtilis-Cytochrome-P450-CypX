@@ -1,0 +1,9 @@
+# PIY commands (final)
+gmx grompp -f step4.0_minimization.mdp -c step3_input.gro -p topol.top -o step4.0_minimization.tpr -r step3_input.gro -n index.ndx
+gmx mdrun -deffnm step4.0_minimization
+
+gmx grompp -f step4.1_equilibration.mdp -c step4.0_minimization.gro -p topol.top -o step4.1_equilibration.tpr -r step4.0_minimization.gro -n index.ndx
+gmx mdrun -deffnm step4.1_equilibration
+
+gmx grompp -f step5_production.mdp -c step4.1_equilibration.gro -p topol.top -o step5_1.tpr -r step4.1_equilibration.gro -n index.ndx
+gmx mdrun -deffnm step5_1
